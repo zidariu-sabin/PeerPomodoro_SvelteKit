@@ -1,0 +1,79 @@
+@tailwind utilities;
+@config '../../tailwind.config.ts';
+@import 'tailwindcss' layer(tw);
+@import './custom-preflight.css' layer(tw.base);
+@plugin "tailwindcss-animate";
+
+/* 
+@theme {
+  */
+@layer tw, tw.theme, tw.base, tw.components, tw.utilities, custom;
+
+:host {
+  margin: initial;
+  padding: initial;
+}
+
+@layer custom {
+  :root {
+    --background: 42 45% 94%;
+    --foreground: 24 6% 20%;
+
+    --card: 40 35% 97%;
+    --card-foreground: 24 6% 20%;
+
+    --popover: 40 35% 97%;
+    --popover-foreground: 24 6% 20%;
+
+    --primary: 24 6% 25%;
+    --primary-foreground: 42 45% 94%;
+
+    --secondary: 160 30% 85%;
+    --secondary-foreground: 24 6% 20%;
+
+    --muted: 40 20% 88%;
+    --muted-foreground: 24 6% 45%;
+
+    --accent: 9 70% 65%;
+    --accent-foreground: 42 45% 94%;
+
+    --start: 9 70% 65%;
+    --start-foreground: 42 45% 94%;
+
+    --session: 133 21% 55%;
+    --session-foreground: 42 45% 94%;
+
+    --break: 160 45% 60%;
+    --break-foreground: 42 45% 94%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 42 45% 94%;
+
+    --border: 24 15% 75%;
+    --input: 40 25% 90%;
+    --ring: 24 6% 25%;
+
+    --radius: 1rem;
+
+    --sketch-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  /* Orientation-specific tweaks: reduce container padding in landscape on small devices */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .container {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    /* slightly smaller controls */
+    input,
+    button {
+      height: 44px;
+      font-size: 0.95rem;
+    }
+  }
+
+  /* Ensure inputs look good on mobile (no unexpected zoom) */
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+}

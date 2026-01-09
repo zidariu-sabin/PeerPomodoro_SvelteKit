@@ -22,12 +22,14 @@ class ConnectionStore {
             this.socket.onopen = () => {
                 this.state = 'connected';
                 console.log('WebSocket connected');
+                this.sendMessage({ type: 'join', payload: { connection_status: "connection_successfull" } });
             };
 
             this.socket.onclose = () => {
                 this.state = 'disconnected';
                 this.socket = null;
                 console.log('WebSocket disconnected');
+                this.sendMessage({ type: 'leave', payload: { connection_status: "connection_interrupted" } });
             };
 
             this.socket.onerror = (event) => {

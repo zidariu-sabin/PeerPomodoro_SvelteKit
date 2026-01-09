@@ -16,7 +16,7 @@
 
     async function CreateSession() {
       await connection.connect();
-      setTimeout(() => connection.sendMessage({connection_message: "register"}), 100);
+      // setTimeout(() => connection.sendMessage({connection_message: "register"}), 100);
     }
 
   </script>

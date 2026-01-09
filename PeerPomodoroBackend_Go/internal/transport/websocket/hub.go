@@ -1,4 +1,4 @@
-package internal
+package websocket
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients in the same session.

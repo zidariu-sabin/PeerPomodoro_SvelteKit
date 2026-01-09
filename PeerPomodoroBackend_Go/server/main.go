@@ -1,7 +1,8 @@
 package main
 
 import (
-	"PeerPomodoroBackend_Go/internal"
+	"PeerPomodoroBackend_Go/internal/service"
+	wsTransport "PeerPomodoroBackend_Go/internal/transport/websocket"
 	"flag"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 )
 
 var addr = flag.String("addr", "localhost:8080", "http port number")
@@ -39,11 +41,19 @@ func main() {
 	flag.Parse()
 	log.SetFlags(0)
 
-	hub := internal.NewHub()
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found, relying on system environment variables")
+	}
+
+	// Initialize services
+	_ = service.NewSessionService() // Placeholder for future dependency injection
+
+	hub := wsTransport.NewHub()
 	go hub.Run()
 
 	http.HandleFunc("/connect", func(w http.ResponseWriter, r *http.Request) {
-		internal.ServeWs(hub, w, r, upgrader)
+		wsTransport.ServeWs(hub, w, r, upgrader)
 	})
 
 	log.Printf("Server is successfully running on address %s", *addr)

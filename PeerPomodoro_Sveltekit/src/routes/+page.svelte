@@ -7,10 +7,10 @@
         <h1
           class="text-3xl sm:text-5xl md:text-7xl font-bold text-foreground mb-2 sm:mb-3 transform -rotate-1"
         >
-          Pomodoro
+          PeerPomodoro
         </h1>
         <p class="text-md sm:text-xl md:text-2xl text-muted-foreground transform rotate-1">
-          ~ stay focused, work smart ~
+          ~ stay focused, work smart, together ~
         </p>
       </header>
       <div>

@@ -54,19 +54,32 @@ The server listens on `localhost:8080`.
 
 **Endpoints:**
 -   `/connect`: WebSocket connection endpoint.
+-   `/create-session`: HTTP POST endpoint for initial session creation.
 
 ## Development Conventions
 
 -   **Frontend Style:** Tailwind CSS for styling. Svelte 5 runes for state management. Native `WebSocket` API for communication.
+-   **Frontend Routing:** 
+    -   `/`: Homepage with session creation.
+    -   `/timer`: Local-only Pomodoro timer.
+    -   `/timer/[slug]`: Collaborative session timer (uses WebSocket).
 -   **Backend Architecture:**
     -   `server/`: Application entry point (`main.go`).
-    -   `internal/domain/`: Core entities and business rules (Timer, Session, Client).
-    -   `internal/service/`: Business logic orchestration (SessionManager).
+    -   `internal/domain/`: Core entities and business rules (Timer, Session, Client, Message, Protocol).
+    -   `internal/ports/`: Interface definitions for external systems (e.g., `SessionRepository`).
+    -   `internal/service/`: Business logic orchestration (e.g., `SessionService`).
+    -   `internal/transport/http/`: HTTP endpoint handlers (e.g., `CreateSession`).
     -   `internal/transport/websocket/`: WebSocket infrastructure (Hub, Client).
-    -   `internal/adapters/`: External system integrations (e.g., in-memory repos).
+    -   `internal/adapters/`: Implementation of ports (e.g., `in_memory/SessionRepository`).
 
 ## Architecture Notes
--   **Real-time Communication:** The system uses standard WebSockets. 
-    -   **Backend:** Uses `gorilla/websocket`. A `Hub` manages broadcasting and connection lifecycle.
+-   **Real-time Communication:** 
+    -   **Backend:** Uses `gorilla/websocket`. A session-aware `Hub` manages scoped broadcasting to specific sessions.
     -   **Frontend:** Uses native `WebSocket` API integrated into a Svelte 5 reactive store (`connectionStore.svelte.ts`).
--   **Concurrency:** The backend Hub uses a non-blocking broadcast pattern to protect against slow consumers.
+-   **Session Management:**
+    -   **Lifecycle:** Sessions are created via an HTTP POST request and joined via a WebSocket `join_session` message.
+    -   **Storage:** Decoupled via the Repository pattern. Currently uses an in-memory adapter but is designed for easy transition to a database (SQL/NoSQL).
+    -   **Identification:** Sessions are identified by UUIDv4 strings.
+-   **Communication Protocol:**
+    -   All WebSocket messages follow a strict JSON structure defined by the `domain.Message` type, containing a `type` string and a `payload` raw JSON object.
+-   **Concurrency:** The backend Hub uses a non-blocking broadcast pattern and session-scoped maps to ensure efficient message routing.

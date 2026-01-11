@@ -1,11 +1,18 @@
 import { browser } from '$app/environment';
+import type { TimerConfigurableData } from './pomodoroStore.svelte';
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
+
+interface SessionState {
+    id: string | null;
+    error: string | null;
+}
 
 class ConnectionStore {
     socket: WebSocket | null = null;
     state: ConnectionState = $state('disconnected');
     error: string | null = $state(null);
+    session: SessionState = $state({ id: null, error: null });
 
     constructor() {}
 
@@ -22,14 +29,12 @@ class ConnectionStore {
             this.socket.onopen = () => {
                 this.state = 'connected';
                 console.log('WebSocket connected');
-                this.sendMessage({ type: 'join', payload: { connection_status: "connection_successfull" } });
             };
 
             this.socket.onclose = () => {
                 this.state = 'disconnected';
                 this.socket = null;
                 console.log('WebSocket disconnected');
-                this.sendMessage({ type: 'leave', payload: { connection_status: "connection_interrupted" } });
             };
 
             this.socket.onerror = (event) => {
@@ -37,14 +42,35 @@ class ConnectionStore {
                 this.error = 'WebSocket error occurred';
                 console.error('WebSocket error:', event);
             };
-            //on received backed message
+
             this.socket.onmessage = (event) => {
-                // console.log('Message received:', event.data);
+                try {
+                    const msg = JSON.parse(event.data);
+                    this.handleMessage(msg);
+                } catch (e) {
+                    console.error('Failed to parse message:', event.data);
+                }
             };
 
         } catch (e) {
             this.state = 'error';
             this.error = e instanceof Error ? e.message : 'Unknown error';
+        }
+    }
+
+    handleMessage(msg: any) {
+        console.log('Received:', msg);
+        switch (msg.type) {
+            case 'session_created':
+                this.session.id = msg.payload.session_id;
+                break;
+            case 'session_joined':
+                this.session.id = msg.payload.session_id;
+                // TODO: Update timer state with msg.payload.timer
+                break;
+            case 'error':
+                this.session.error = msg.payload.message;
+                break;
         }
     }
 
@@ -54,6 +80,23 @@ class ConnectionStore {
         } else {
             console.warn('Cannot send message, socket not open');
         }
+    }
+
+    createSession(timerData: TimerConfigurableData) {
+        // Map camelCase to snake_case for backend
+        const payload = {
+            work_time: timerData.workTime,
+            break_time: timerData.breakTime,
+            total_rounds: timerData.totalRounds
+        };
+        this.sendMessage({ type: 'create_session', payload });
+    }
+
+    joinSession(sessionId: string, userName: string) {
+        this.sendMessage({
+            type: 'join_session',
+            payload: { session_id: sessionId, user_name: userName }
+        });
     }
 }
 

@@ -1,8 +1,8 @@
   
   <script lang="ts">
+    import { goto } from '$app/navigation';
     import { timer, setTimerData } from "$lib/stores/pomodoroStore.svelte";
     import type { TimerConfigurableData } from "$lib/stores/pomodoroStore.svelte";
-    import { connection } from "$lib/stores/connectionStore.svelte"
 
     const formData: TimerConfigurableData = {
       workTime: timer.workTime,
@@ -15,8 +15,28 @@
     }
 
     async function CreateSession() {
-      await connection.connect();
-      // setTimeout(() => connection.sendMessage({connection_message: "register"}), 100);
+      try {
+        const response = await fetch('http://localhost:8080/create-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            work_time: formData.workTime,
+            break_time: formData.breakTime,
+            total_rounds: formData.totalRounds
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create session');
+        }
+
+        const data = await response.json();
+        goto(`/timer/${data.session_id}`);
+      } catch (error) {
+        console.error('Error creating session:', error);
+      }
     }
 
   </script>
@@ -69,7 +89,7 @@
       </div>
        <a href="/timer">
          <button
-         on:click={() => setTimerData(formData)}
+         on:click={() => StartTimer()}
         class="w-full mt-6 sm:mt-8 h-12 sm:h-16 text-xl sm:text-3xl font-bold bg-start hover:bg-start/90 text-start-foreground rounded-2xl border-2 border-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] transform hover:-rotate-1 transition-all"
          >
          <!-- <ProiconsPlay class="mr-3 h-8 w-8" /> -->

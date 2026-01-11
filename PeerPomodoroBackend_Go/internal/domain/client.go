@@ -5,7 +5,7 @@ type Client struct {
 	Name string `json:"name"`
 }
 
-func newClient(id string, name string) *Client {
+func NewClient(id string, name string) *Client {
 	return &Client{
 		ID:   id,
 		Name: name,

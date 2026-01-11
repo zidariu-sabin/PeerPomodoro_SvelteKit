@@ -1,11 +1,13 @@
 package websocket
 
 import (
-	"bytes"
+	"PeerPomodoroBackend_Go/internal/domain"
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -37,6 +39,12 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	// Client's unique identifier
+	id string
+
+	// The session this client belongs to
+	sessionID string
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -60,9 +68,68 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		log.Println(string(message[:]))
-		c.hub.broadcast <- message
+
+		var msg domain.Message
+		if err := json.Unmarshal(message, &msg); err != nil {
+			log.Printf("Invalid JSON: %v", err)
+			continue
+		}
+
+		switch msg.Type {
+		case domain.MessageTypeJoinSession:
+			var req domain.JoinSessionRequest
+			if err := json.Unmarshal(msg.Payload, &req); err != nil {
+				log.Printf("Invalid JoinSessionRequest: %v", err)
+				continue
+			}
+
+			// Generate Client ID
+			clientID := uuid.NewString()
+			dClient := domain.NewClient(clientID, req.UserName)
+
+			// Add to session via service
+			if err := c.hub.sessionService.AddClientToSession(req.SessionID, *dClient); err != nil {
+				log.Printf("Failed to join session: %v", err)
+				// TODO: Send error message to client
+				continue
+			}
+
+			c.id = clientID
+			c.sessionID = req.SessionID
+			c.hub.join <- c
+
+			// Get updated session data
+			session, err := c.hub.sessionService.GetSession(req.SessionID)
+			if err != nil {
+				log.Printf("Failed to get session: %v", err)
+				continue
+			}
+
+			// Send confirmation to this client
+			response := domain.SessionJoinedResponse{
+				SessionID: session.ID,
+				ClientID:  clientID,
+				Timer:     session.Timer,
+				Clients:   session.Clients,
+			}
+
+			respPayload, _ := json.Marshal(response)
+			respMsg := domain.Message{
+				Type:    domain.MessageTypeSessionJoined,
+				Payload: respPayload,
+			}
+
+			finalMsg, _ := json.Marshal(respMsg)
+			c.send <- finalMsg
+
+		default:
+			if c.sessionID != "" {
+				c.hub.broadcast <- SessionMessage{
+					SessionID: c.sessionID,
+					Payload:   message,
+				}
+			}
+		}
 	}
 }
 

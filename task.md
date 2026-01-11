@@ -25,18 +25,21 @@ This document outlines the step-by-step implementation plan for the PeerPomodoro
 ## Phase 2: Session Management (MVP Core)
 **Goal:** Allow users to initiate and join isolated sessions (Sessions).
 
-- [ ] **2.1 Backend Session Infrastructure**
+- [x] **2.1 Backend Session Infrastructure**
     - Define a `Session` struct in Go to hold connected clients and timer state.
     - Implement a `SessionManager` to handle creating and retrieving sessions.
     - Define JSON message structures for `create_session` and `join_Session`.
+    - **Update:** Adopted UUIDv4 for Session IDs.
+    - Create `/create_Session` endpoint logic to instantiate a new Session and return its UUID.
 
-- [ ] **2.2 Frontend Session UI**
-    - Update the homepage (`/`) to feature "Create Session" and "Join Session" forms.
-    - Implement navigation: On successful session creation/join, redirect user to `/timer/[sessionId]`.
-- [ ] **2.3 Wiring Session Logic**
-    - Frontend: Send `create_Session` message over the WebSocket.
-    - Backend: Respond with a unique `Session_id`.
-    - Frontend: Send `join_Session` with the ID.
+- [x] **2.2 Frontend Session UI**
+    - Update the homepage (`/`) to feature "Create Session" form.
+    - Implement navigation: On successful session creation, redirect user to `/timer/[sessionId]`.
+    - Upon navigating to `/timer/[sessionId]`, create a WebSocket connection.
+- [x] **2.3 Wiring Session Logic**
+    - Frontend: Upon timer form submit, request `/create_Session` 
+    - Backend: Respond with a unique `Session_id` (UUID).
+    - Frontend: Upon navigating to `/timer/[sessionId]`, send `join_Session` with the UUID.
     - Backend: Add the client's connection to the specific Session's broadcast list.
 
 ## Phase 3: Timer Synchronization

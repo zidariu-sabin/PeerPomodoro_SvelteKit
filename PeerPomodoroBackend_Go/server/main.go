@@ -1,7 +1,9 @@
 package main
 
 import (
+	"PeerPomodoroBackend_Go/internal/adapters/in_memory"
 	"PeerPomodoroBackend_Go/internal/service"
+	transportHttp "PeerPomodoroBackend_Go/internal/transport/http"
 	wsTransport "PeerPomodoroBackend_Go/internal/transport/websocket"
 	"flag"
 	"log"
@@ -46,15 +48,23 @@ func main() {
 		log.Println("No .env file found, relying on system environment variables")
 	}
 
-	// Initialize services
-	_ = service.NewSessionService() // Placeholder for future dependency injection
+	// Initialize repository
+	sessionRepo := in_memory.NewSessionRepository()
 
-	hub := wsTransport.NewHub()
+	// Initialize services
+	sessionService := service.NewSessionService(sessionRepo)
+
+	// Initialize HTTP Handler
+	httpHandler := transportHttp.NewHandler(sessionService)
+
+	hub := wsTransport.NewHub(sessionService)
 	go hub.Run()
 
 	http.HandleFunc("/connect", func(w http.ResponseWriter, r *http.Request) {
 		wsTransport.ServeWs(hub, w, r, upgrader)
 	})
+
+	http.HandleFunc("/create-session", httpHandler.CreateSession)
 
 	log.Printf("Server is successfully running on address %s", *addr)
 	log.Fatal(http.ListenAndServe(*addr, nil))

@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { TimerConfigurableData } from './pomodoroStore.svelte';
+import { syncTimer, type TimerConfigurableData } from './pomodoroStore.svelte';
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -66,7 +66,14 @@ class ConnectionStore {
                 break;
             case 'session_joined':
                 this.session.id = msg.payload.session_id;
-                // TODO: Update timer state with msg.payload.timer
+                if (msg.payload.timer) {
+                    syncTimer(msg.payload.timer);
+                }
+                break;
+            case 'timer_update':
+                if (msg.payload.timer) {
+                    syncTimer(msg.payload.timer);
+                }
                 break;
             case 'error':
                 this.session.error = msg.payload.message;
@@ -97,6 +104,18 @@ class ConnectionStore {
             type: 'join_session',
             payload: { session_id: sessionId, user_name: userName }
         });
+    }
+
+    startTimer() {
+        this.sendMessage({ type: 'start_timer', payload: {} });
+    }
+
+    pauseTimer() {
+        this.sendMessage({ type: 'pause_timer', payload: {} });
+    }
+
+    resetTimer() {
+        this.sendMessage({ type: 'stop_timer', payload: {} });
     }
 }
 

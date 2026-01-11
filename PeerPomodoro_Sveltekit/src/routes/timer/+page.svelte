@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import PomodoroTimer from "$lib/components/PomodoroTimer.svelte";
     import ShareForm from '$lib/components/ShareForm.svelte';
+    import { timer, startTimer, pause, resetLocalTimer } from "$lib/stores/pomodoroStore.svelte";
 
     let showShareModal = false;
     let shareButtonRef: HTMLButtonElement | null = null;
@@ -55,5 +56,10 @@
                 </div>
     {/if}
 
-    <PomodoroTimer />
+    <PomodoroTimer 
+        timerState={timer}
+        onStart={startTimer}
+        onPause={pause}
+        onReset={resetLocalTimer}
+    />
 </div>

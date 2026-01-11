@@ -3,6 +3,9 @@ package domain
 // Incoming Message Types
 const (
 	MessageTypeJoinSession = "join_session"
+	MessageTypeStartTimer  = "start_timer"
+	MessageTypePauseTimer  = "pause_timer"
+	MessageTypeStopTimer   = "stop_timer"
 )
 
 // Outgoing Message Types
@@ -11,6 +14,7 @@ const (
 	MessageTypeSessionJoined  = "session_joined"
 	MessageTypeUserJoined     = "user_joined"
 	MessageTypeUserLeft       = "user_left"
+	MessageTypeTimerUpdate    = "timer_update"
 	MessageTypeError          = "error"
 )
 
@@ -51,6 +55,11 @@ type UserJoinedResponse struct {
 // UserLeftResponse is broadcast when a user leaves the session
 type UserLeftResponse struct {
 	ClientID string `json:"client_id"`
+}
+
+// TimerUpdateResponse is broadcast when the timer ticks or changes state
+type TimerUpdateResponse struct {
+	Timer Timer `json:"timer"`
 }
 
 // ErrorResponse is a generic error payload

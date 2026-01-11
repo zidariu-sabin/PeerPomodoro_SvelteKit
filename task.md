@@ -45,17 +45,17 @@ This document outlines the step-by-step implementation plan for the PeerPomodoro
 ## Phase 3: Timer Synchronization
 **Goal:** Enable real-time, synchronized timer control across all clients in a Session.
 
-- [ ] **3.1 Backend Timer Logic**
+- [x] **3.1 Backend Timer Logic**
     - Extend `Session` struct to track `TimerState` (running/paused, time remaining, last updated timestamp).
     - Implement message handlers for `start_timer`, `pause_timer`, `reset_timer`.
     - Create a ticker/loop (or efficient timestamp comparison) to broadcast time updates.
 
-- [ ] **3.2 Frontend Timer Component**
+- [x] **3.2 Frontend Timer Component**
     - Build a `PomodoroTimer.svelte` component.
     - Bind "Start", "Pause", "Reset" buttons to WebSocket messages.
     - Subscribe to `timer_update` messages from the server to update the UI display.
 
-- [ ] **3.3 Handling Late Joiners**
+- [x] **3.3 Handling Late Joiners**
     - Ensure that when a user joins an active Session, they immediately receive the current timer state (syncing them up with the group).
 
 ## Phase 4: Polish & UX Improvements
@@ -66,7 +66,7 @@ This document outlines the step-by-step implementation plan for the PeerPomodoro
     - Frontend: Show a "Reconnecting..." state if the server drops.
 
 - [ ] **4.2 Visuals & Feedback**
-    - Style the timer and forms using Tailwind CSS.
+    - Create a user Dashboard to display session information about joined users and their connection state.
     - Keep the already implemented design and make it consistent.
     - Add browser notifications or sounds for timer completion.
 

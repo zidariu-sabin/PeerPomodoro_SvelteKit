@@ -109,7 +109,7 @@ func (c *Client) readPump() {
 			response := domain.SessionJoinedResponse{
 				SessionID: session.ID,
 				ClientID:  clientID,
-				Timer:     session.Timer,
+				Timer:     *session.Timer,
 				Clients:   session.Clients,
 			}
 
@@ -121,6 +121,21 @@ func (c *Client) readPump() {
 
 			finalMsg, _ := json.Marshal(respMsg)
 			c.send <- finalMsg
+
+		case domain.MessageTypeStartTimer:
+			if c.sessionID != "" {
+				c.hub.StartTimer(c.sessionID)
+			}
+
+		case domain.MessageTypePauseTimer:
+			if c.sessionID != "" {
+				c.hub.PauseTimer(c.sessionID)
+			}
+
+		case domain.MessageTypeStopTimer:
+			if c.sessionID != "" {
+				c.hub.ResetTimer(c.sessionID)
+			}
 
 		default:
 			if c.sessionID != "" {

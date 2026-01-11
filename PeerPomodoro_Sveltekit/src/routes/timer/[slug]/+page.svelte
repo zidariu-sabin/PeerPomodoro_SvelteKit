@@ -2,6 +2,7 @@
 import { page } from '$app/stores';
 import { onMount } from 'svelte';
 import { connection } from "$lib/stores/connectionStore.svelte";
+import { timer } from "$lib/stores/pomodoroStore.svelte";
 import PomodoroTimer from "$lib/components/PomodoroTimer.svelte";
 
 const sessionId = $page.params.slug;
@@ -26,5 +27,10 @@ $effect(() => {
     <div class="text-xs text-muted-foreground">
         Status: {connection.state}
     </div>
-    <PomodoroTimer />
+    <PomodoroTimer 
+        timerState={timer}
+        onStart={() => connection.startTimer()}
+        onPause={() => connection.pauseTimer()}
+        onReset={() => connection.resetTimer()}
+    />
 </div>

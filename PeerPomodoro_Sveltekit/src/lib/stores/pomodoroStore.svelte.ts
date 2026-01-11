@@ -39,6 +39,24 @@ export function setTimerData(timerData: TimerConfigurableData) {
   startTimer()
 }
 
+export function syncTimer(backendTimer: any) {
+  timer.workTime = backendTimer.work_time
+  timer.breakTime = backendTimer.break_time
+  timer.totalRounds = backendTimer.total_rounds
+  timer.currentRound = backendTimer.current_round
+  timer.secondsRemaining = backendTimer.seconds_remaining
+  timer.isWorkPeriod = backendTimer.is_work_period
+  timer.isRunning = backendTimer.is_running
+  timer.isCompleted = backendTimer.is_completed
+  timer.isTimerCreated = backendTimer.is_timer_created
+
+  // Disable local interval in favor of backend updates
+  if (intervalId !== null) {
+    clearInterval(intervalId)
+    intervalId = null
+  }
+}
+
 function tick() {
   if(timer.secondsRemaining > 0)  timer.secondsRemaining --
    else {
@@ -72,6 +90,12 @@ export function pause() {
   }
 }
 
+// Local-Only: Resets the timer state
+export function resetLocalTimer() {
+  pause()
+  initializeTimer()
+}
+
 function initializeTimer() {
     timer.isTimerCreated = true
     timer.currentRound = 1
@@ -82,33 +106,12 @@ function initializeTimer() {
   }
 
 export function startTimer(){
+  if (timer.isRunning) return
+  if (intervalId !== null) clearInterval(intervalId)
+  
   timer.isRunning = true
   intervalId = window.setInterval(() => {
       tick()
     }, 1000)
 }
 
-
-
-
-// function createTimer(SimplePomodoroState: SimplePomodoroState){
-
-//   const subscriberts = new Set()
-
-//   function subscribe(subscriber) {
-//     subscriberts.add(subscriber)
-//   }
-
-//   function unsubscribe(subscriber) {
-//     subscriberts.delete(subscriber)
-//   }
-
-//   function tick() {
-//     if(SimplePomodoroState.secondsRemaining >0){
-//       SimplePomodoroState.secondsRemaining--
-//   }
-
-//   funtion start(){
-    
-//   }
-// }

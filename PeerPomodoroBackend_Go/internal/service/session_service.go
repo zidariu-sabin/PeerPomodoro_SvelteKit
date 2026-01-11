@@ -14,6 +14,9 @@ type SessionManager interface {
 	GetSession(id string) (*domain.Session, error)
 	AddClientToSession(sessionID string, client domain.Client) error
 	RemoveClientFromSession(sessionID string, clientID string) error
+	StartTimer(sessionID string, onTick func(*domain.Timer)) error
+	PauseTimer(sessionID string) error
+	ResetTimer(sessionID string) error
 }
 
 // SessionService implements SessionManager with different adapters such as in-memory storage/ database
@@ -34,7 +37,7 @@ func (s *SessionService) CreateSession(timer domain.Timer) *domain.Session {
 	session := &domain.Session{
 		ID:      id,
 		Clients: []domain.Client{},
-		Timer:   timer,
+		Timer:   &timer,
 	}
 	s.repo.Save(session)
 	return session
@@ -67,4 +70,36 @@ func (s *SessionService) RemoveClientFromSession(sessionID string, clientID stri
 		}
 	}
 	return errors.New("client not found in session")
+}
+
+func (s *SessionService) StartTimer(sessionID string, onTick func(*domain.Timer)) error {
+	session, err := s.repo.Get(sessionID)
+	if err != nil {
+		return err
+	}
+
+	session.Timer.OnTick = onTick
+	session.Timer.Start()
+
+	return s.repo.Update(session)
+}
+
+func (s *SessionService) PauseTimer(sessionID string) error {
+	session, err := s.repo.Get(sessionID)
+	if err != nil {
+		return err
+	}
+
+	session.Timer.Pause()
+	return s.repo.Update(session)
+}
+
+func (s *SessionService) ResetTimer(sessionID string) error {
+	session, err := s.repo.Get(sessionID)
+	if err != nil {
+		return err
+	}
+
+	session.Timer.InitializeTimer()
+	return s.repo.Update(session)
 }

@@ -90,13 +90,32 @@ func (c *Client) readPump() {
 			// Add to session via service
 			if err := c.hub.sessionService.AddClientToSession(req.SessionID, *dClient); err != nil {
 				log.Printf("Failed to join session: %v", err)
-				// TODO: Send error message to client
+				
+				resp := domain.ErrorResponse{Message: "Session not found or unavailable"}
+				payload, _ := json.Marshal(resp)
+				msg := domain.Message{Type: domain.MessageTypeError, Payload: payload}
+				finalMsg, _ := json.Marshal(msg)
+				c.send <- finalMsg
 				continue
 			}
 
 			c.id = clientID
 			c.sessionID = req.SessionID
 			c.hub.join <- c
+
+			// Broadcast UserJoined to session
+			userJoinedResp := domain.UserJoinedResponse{Client: *dClient}
+			userJoinedPayload, _ := json.Marshal(userJoinedResp)
+			userJoinedMsg := domain.Message{
+				Type:    domain.MessageTypeUserJoined,
+				Payload: userJoinedPayload,
+			}
+			userJoinedFinal, _ := json.Marshal(userJoinedMsg)
+
+			c.hub.broadcast <- SessionMessage{
+				SessionID: req.SessionID,
+				Payload:   userJoinedFinal,
+			}
 
 			// Get updated session data
 			session, err := c.hub.sessionService.GetSession(req.SessionID)
@@ -121,6 +140,39 @@ func (c *Client) readPump() {
 
 			finalMsg, _ := json.Marshal(respMsg)
 			c.send <- finalMsg
+
+		case domain.MessageTypeUpdateUser:
+			var req domain.UpdateUserRequest
+			if err := json.Unmarshal(msg.Payload, &req); err != nil {
+				log.Printf("Invalid UpdateUserRequest: %v", err)
+				continue
+			}
+
+			if c.sessionID == "" {
+				continue
+			}
+
+			if err := c.hub.sessionService.UpdateClientName(c.sessionID, c.id, req.Name); err != nil {
+				log.Printf("Failed to update user name: %v", err)
+				continue
+			}
+
+			resp := domain.UserUpdatedResponse{
+				ClientID: c.id,
+				Name:     req.Name,
+			}
+			payload, _ := json.Marshal(resp)
+
+			broadcastMsg := domain.Message{
+				Type:    domain.MessageTypeUserUpdated,
+				Payload: payload,
+			}
+			finalMsg, _ := json.Marshal(broadcastMsg)
+
+			c.hub.broadcast <- SessionMessage{
+				SessionID: c.sessionID,
+				Payload:   finalMsg,
+			}
 
 		case domain.MessageTypeStartTimer:
 			if c.sessionID != "" {

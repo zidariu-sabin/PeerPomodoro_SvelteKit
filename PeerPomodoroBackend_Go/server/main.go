@@ -65,6 +65,7 @@ func main() {
 	})
 
 	http.HandleFunc("/create-session", httpHandler.CreateSession)
+	http.HandleFunc("/session/", httpHandler.GetSession)
 
 	log.Printf("Server is successfully running on address %s", *addr)
 	log.Fatal(http.ListenAndServe(*addr, nil))

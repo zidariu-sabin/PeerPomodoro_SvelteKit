@@ -3,6 +3,11 @@ import { syncTimer, type TimerConfigurableData } from './pomodoroStore.svelte';
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
 
+export interface User {
+    id: string;
+    name: string;
+}
+
 interface SessionState {
     id: string | null;
     error: string | null;
@@ -13,6 +18,8 @@ class ConnectionStore {
     state: ConnectionState = $state('disconnected');
     error: string | null = $state(null);
     session: SessionState = $state({ id: null, error: null });
+    clientId: string | null = $state(null);
+    users: User[] = $state([]);
 
     constructor() {}
 
@@ -22,6 +29,8 @@ class ConnectionStore {
 
         this.state = 'connecting';
         this.error = null;
+        this.session.error = null;
+        this.clientId = null;
 
         try {
             this.socket = new WebSocket('ws://localhost:8080/connect');
@@ -66,9 +75,34 @@ class ConnectionStore {
                 break;
             case 'session_joined':
                 this.session.id = msg.payload.session_id;
+                this.clientId = msg.payload.client_id;
                 if (msg.payload.timer) {
                     syncTimer(msg.payload.timer);
                 }
+                if (msg.payload.clients) {
+                    this.users = msg.payload.clients;
+                }
+                break;
+            case 'user_joined':
+                const newUser = msg.payload.client;
+                if (!this.users.find(u => u.id === newUser.id)) {
+                    this.users.push(newUser);
+                }
+                break;
+            case 'user_updated':
+                console.log('Processing user_updated:', msg.payload);
+                const index = this.users.findIndex(u => u.id === msg.payload.client_id);
+                console.log('Found user index:', index);
+                if (index !== -1) {
+                    // Force full array update for reactivity
+                    const newUsers = [...this.users];
+                    newUsers[index] = { ...newUsers[index], name: msg.payload.name };
+                    this.users = newUsers;
+                    console.log('Updated users array:', this.users);
+                }
+                break;
+            case 'user_left':
+                this.users = this.users.filter(u => u.id !== msg.payload.client_id);
                 break;
             case 'timer_update':
                 if (msg.payload.timer) {
@@ -103,6 +137,13 @@ class ConnectionStore {
         this.sendMessage({
             type: 'join_session',
             payload: { session_id: sessionId, user_name: userName }
+        });
+    }
+
+    updateName(name: string) {
+        this.sendMessage({
+            type: 'update_user',
+            payload: { name }
         });
     }
 

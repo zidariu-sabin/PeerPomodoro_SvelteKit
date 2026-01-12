@@ -61,7 +61,7 @@ This document outlines the step-by-step implementation plan for the PeerPomodoro
 ## Phase 4: Polish & UX Improvements
 **Goal:** Make the application robust and pleasant to use.
 
-- [ ] **4.1 Graceful Disconnection**
+- [x] **4.1 Graceful Disconnection**
     - Backend: Remove clients from Sessions on disconnect.
     - Frontend: Show a "Reconnecting..." state if the server drops.
 

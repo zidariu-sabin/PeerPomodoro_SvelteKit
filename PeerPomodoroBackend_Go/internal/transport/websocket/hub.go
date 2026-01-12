@@ -55,6 +55,22 @@ func (h *Hub) Run() {
 			if client.sessionID != "" {
 				if clients, ok := h.sessions[client.sessionID]; ok {
 					delete(clients, client)
+
+					// Broadcast UserLeft to remaining clients
+					resp := domain.UserLeftResponse{ClientID: client.id}
+					payload, _ := json.Marshal(resp)
+					wrapper := domain.Message{Type: domain.MessageTypeUserLeft, Payload: payload}
+					finalMsg, _ := json.Marshal(wrapper)
+
+					for remainingClient := range clients {
+						select {
+						case remainingClient.send <- finalMsg:
+						default:
+							close(remainingClient.send)
+							delete(clients, remainingClient)
+						}
+					}
+
 					if len(clients) == 0 {
 						delete(h.sessions, client.sessionID)
 					}

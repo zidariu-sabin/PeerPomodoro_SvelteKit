@@ -14,6 +14,7 @@ type SessionManager interface {
 	GetSession(id string) (*domain.Session, error)
 	AddClientToSession(sessionID string, client domain.Client) error
 	RemoveClientFromSession(sessionID string, clientID string) error
+	UpdateClientName(sessionID string, clientID string, newName string) error
 	StartTimer(sessionID string, onTick func(*domain.Timer)) error
 	PauseTimer(sessionID string) error
 	ResetTimer(sessionID string) error
@@ -55,6 +56,21 @@ func (s *SessionService) AddClientToSession(sessionID string, client domain.Clie
 
 	session.Clients = append(session.Clients, client)
 	return s.repo.Update(session)
+}
+
+func (s *SessionService) UpdateClientName(sessionID string, clientID string, newName string) error {
+	session, err := s.repo.Get(sessionID)
+	if err != nil {
+		return err
+	}
+
+	for i, client := range session.Clients {
+		if client.ID == clientID {
+			session.Clients[i].Name = newName
+			return s.repo.Update(session)
+		}
+	}
+	return errors.New("client not found in session")
 }
 
 func (s *SessionService) RemoveClientFromSession(sessionID string, clientID string) error {

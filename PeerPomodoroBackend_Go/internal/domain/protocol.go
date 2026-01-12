@@ -3,6 +3,7 @@ package domain
 // Incoming Message Types
 const (
 	MessageTypeJoinSession = "join_session"
+	MessageTypeUpdateUser  = "update_user"
 	MessageTypeStartTimer  = "start_timer"
 	MessageTypePauseTimer  = "pause_timer"
 	MessageTypeStopTimer   = "stop_timer"
@@ -13,6 +14,7 @@ const (
 	MessageTypeSessionCreated = "session_created"
 	MessageTypeSessionJoined  = "session_joined"
 	MessageTypeUserJoined     = "user_joined"
+	MessageTypeUserUpdated    = "user_updated"
 	MessageTypeUserLeft       = "user_left"
 	MessageTypeTimerUpdate    = "timer_update"
 	MessageTypeError          = "error"
@@ -39,6 +41,11 @@ type JoinSessionRequest struct {
 	UserName  string `json:"user_name"`
 }
 
+// UpdateUserRequest is the payload for updating user details
+type UpdateUserRequest struct {
+	Name string `json:"name"`
+}
+
 // SessionJoinedResponse is the payload sent back when a user joins a session
 type SessionJoinedResponse struct {
 	SessionID string   `json:"session_id"`
@@ -50,6 +57,12 @@ type SessionJoinedResponse struct {
 // UserJoinedResponse is broadcast when a new user joins the session
 type UserJoinedResponse struct {
 	Client Client `json:"client"`
+}
+
+// UserUpdatedResponse is broadcast when a user updates their details
+type UserUpdatedResponse struct {
+	ClientID string `json:"client_id"`
+	Name     string `json:"name"`
 }
 
 // UserLeftResponse is broadcast when a user leaves the session

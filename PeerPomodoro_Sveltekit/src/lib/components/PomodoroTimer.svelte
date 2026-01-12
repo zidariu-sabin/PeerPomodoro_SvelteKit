@@ -21,7 +21,7 @@
     )
 </script>
 
-<div class="max-w-125 p-8 text-center">
+<div class="max-w-125 p-8 text-center mx-auto">
     <!-- Timer Display -->
     <div class="p-8 rounded-xl mb-8 transition-colors duration-300">
       <h2 class="text-xl">{ periodType }</h2>

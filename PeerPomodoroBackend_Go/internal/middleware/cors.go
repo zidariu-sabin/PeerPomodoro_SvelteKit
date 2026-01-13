@@ -17,16 +17,16 @@ func CheckOrigin(r *http.Request) bool {
 	allowedOrigins := strings.Split(allowedOriginsEnv, ",")
 	origin := r.Header.Get("Origin")
 
-	// If no origin header is present (e.g. server-to-server or same-origin), strictly speaking 
-	// standard CORS might allow it or not depending on policy. 
+	// If no origin header is present (e.g. server-to-server or same-origin), strictly speaking
+	// standard CORS might allow it or not depending on policy.
 	// For this app, we'll iterate allowed list.
-	
+
 	for _, allowedOrigin := range allowedOrigins {
 		if origin == strings.TrimSpace(allowedOrigin) {
 			return true
 		}
 	}
-	
+
 	log.Printf("Origin '%s' not allowed", origin)
 	return false
 }
@@ -34,11 +34,16 @@ func CheckOrigin(r *http.Request) bool {
 // CORS wraps an http.HandlerFunc to provide standard CORS headers and checks.
 func CORS(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if CheckOrigin(r) {
-			origin := r.Header.Get("Origin")
+		origin := r.Header.Get("Origin")
+
+		// Allow requests without Origin header (same-origin, server-to-server)
+		if origin != "" && !CheckOrigin(r) {
+			http.Error(w, "CORS origin not allowed", http.StatusForbidden)
+			return
+		}
+		if origin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 		}
-
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 

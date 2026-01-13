@@ -1,7 +1,7 @@
 <script lang="ts">
 import { page } from '$app/stores';
 import { onMount } from 'svelte';
-import { connection } from "$lib/stores/connectionStore.svelte";
+import { sessionStore } from "$lib/stores/sessionStore.svelte";
 import { timer } from "$lib/stores/pomodoroStore.svelte";
 import { userPersistentStore } from "$lib/stores/userPersistentStore.svelte";
 import PomodoroTimer from "$lib/components/PomodoroTimer.svelte";
@@ -17,14 +17,14 @@ let myName = $state(userPersistentStore.userName);
 
 onMount(() => {
     if (data.isValid) {
-        connection.connect();
+        sessionStore.connect();
     }
     shareUrl = window.location.href;
 });
 
 $effect(() => {
-    if (data.isValid && connection.state === 'connected' && !joined && sessionId) {
-        connection.joinSession(sessionId, myName);
+    if (data.isValid && sessionStore.state === 'connected' && !joined && sessionId) {
+        sessionStore.joinSession(sessionId, myName);
         joined = true;
     }
 });
@@ -32,11 +32,11 @@ $effect(() => {
 function updateUserName() {
     if (myName.trim()) {
         userPersistentStore.setUserName(myName.trim());
-        connection.updateName(myName.trim());
+        sessionStore.updateName(myName.trim());
     }
 }
 
-const displayError = $derived(data.isValid ? connection.session.error : data.error);
+const displayError = $derived(data.isValid ? sessionStore.session.error : data.error);
 </script>
 
 {#if displayError}
@@ -65,13 +65,13 @@ const displayError = $derived(data.isValid ? connection.session.error : data.err
 
         class="w-3 h-3 rounded-full shadow-sm ring-2 ring-background transition-colors duration-300"
 
-        class:bg-green-500={connection.state === 'connected'}
+        class:bg-green-500={sessionStore.state === 'connected'}
 
-        class:bg-red-500={connection.state === 'disconnected' || connection.state === 'error'}
+        class:bg-red-500={sessionStore.state === 'disconnected' || sessionStore.state === 'error'}
 
-        class:bg-yellow-500={connection.state === 'connecting'}
+        class:bg-yellow-500={sessionStore.state === 'connecting'}
 
-        title="Connection status: {connection.state}"
+        title="Connection status: {sessionStore.state}"
 
     ></div>
 
@@ -89,7 +89,7 @@ const displayError = $derived(data.isValid ? connection.session.error : data.err
 
         <span class="bg-white/30 text-session-foreground text-xs px-2 py-0.5 rounded-full ml-1 font-mono">
 
-            {connection.users.length}
+            {sessionStore.users.length}
 
         </span>
 
@@ -199,7 +199,7 @@ const displayError = $derived(data.isValid ? connection.session.error : data.err
 
                 <div class="flex-1 overflow-hidden">
 
-                    <UserList users={connection.users} />
+                    <UserList users={sessionStore.users} />
 
                 </div>
 
@@ -220,11 +220,11 @@ const displayError = $derived(data.isValid ? connection.session.error : data.err
 
             timerState={timer}
 
-            onStart={() => connection.startTimer()}
+            onStart={() => sessionStore.startTimer()}
 
-            onPause={() => connection.pauseTimer()}
+            onPause={() => sessionStore.pauseTimer()}
 
-            onReset={() => connection.resetTimer()}
+            onReset={() => sessionStore.resetTimer()}
 
         />
 

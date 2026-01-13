@@ -1,9 +1,6 @@
-import { browser } from '$app/environment';
 import { syncTimer, timer, type TimerConfigurableData } from './pomodoroStore.svelte';
 import { requestNotificationPermission, sendNotification } from '$lib/utils/notifications';
-import { PUBLIC_WS_BASE_URL } from '$env/static/public';
-
-export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
+import { socketService, type ConnectionState } from '$lib/services/socketService';
 
 export interface User {
     id: string;
@@ -15,63 +12,33 @@ interface SessionState {
     error: string | null;
 }
 
-class ConnectionStore {
-    socket: WebSocket | null = null;
+class SessionStore {
     state: ConnectionState = $state('disconnected');
     error: string | null = $state(null);
     session: SessionState = $state({ id: null, error: null });
     clientId: string | null = $state(null);
     users: User[] = $state([]);
 
-    constructor() {}
+    constructor() {
+        // Subscribe to socket state changes
+        socketService.setStateCallback((newState, newError) => {
+            this.state = newState;
+            this.error = newError;
+            // Clear session error on connect/disconnect
+            if (newState !== 'connected') {
+                this.session.error = null;
+            }
+        });
 
-    connect() {
-        if (!browser) return;
-        if (this.socket?.readyState === WebSocket.OPEN || 
-            this.socket?.readyState === WebSocket.CONNECTING) return;
-
-        this.state = 'connecting';
-        this.error = null;
-        this.session.error = null;
-        this.clientId = null;
-
-        try {
-            const wsUrl = `ws://${import.meta.env.PUBLIC_API_BASE_URL}/connect` || 'ws://localhost:8080/connect';
-            this.socket = new WebSocket(wsUrl);
-
-            this.socket.onopen = () => {
-                this.state = 'connected';
-                console.log('WebSocket connected');
-            };
-
-            this.socket.onclose = () => {
-                this.state = 'disconnected';
-                this.socket = null;
-                console.log('WebSocket disconnected');
-            };
-
-            this.socket.onerror = (event) => {
-                this.state = 'error';
-                this.error = 'WebSocket error occurred';
-                console.error('WebSocket error:', event);
-            };
-
-            this.socket.onmessage = (event) => {
-                try {
-                    const msg = JSON.parse(event.data);
-                    this.handleMessage(msg);
-                } catch (e) {
-                    console.error('Failed to parse message:', event.data);
-                }
-            };
-
-        } catch (e) {
-            this.state = 'error';
-            this.error = e instanceof Error ? e.message : 'Unknown error';
-        }
+        // Register message handler
+        socketService.setMessageHandler((msg) => this.handleMessage(msg));
     }
 
-    handleMessage(msg: any) {
+    connect() {
+        socketService.connect();
+    }
+
+    private handleMessage(msg: any) {
         switch (msg.type) {
             case 'session_created':
                 this.session.id = msg.payload.session_id;
@@ -127,51 +94,42 @@ class ConnectionStore {
         }
     }
 
-    sendMessage(data: any) {
-        if (this.socket?.readyState === WebSocket.OPEN) {
-            this.socket.send(JSON.stringify(data));
-        } else {
-            console.warn('Cannot send message, socket not open');
-        }
-    }
-
     createSession(timerData: TimerConfigurableData) {
         requestNotificationPermission();
-        // Map camelCase to snake_case for backend
         const payload = {
             work_time: timerData.workTime,
             break_time: timerData.breakTime,
             total_rounds: timerData.totalRounds
         };
-        this.sendMessage({ type: 'create_session', payload });
+        socketService.send({ type: 'create_session', payload });
     }
 
     joinSession(sessionId: string, userName: string) {
         requestNotificationPermission();
-        this.sendMessage({
+        socketService.send({
             type: 'join_session',
             payload: { session_id: sessionId, user_name: userName }
         });
     }
 
     updateName(name: string) {
-        this.sendMessage({
+        socketService.send({
             type: 'update_user',
             payload: { name }
         });
     }
 
     startTimer() {
-        this.sendMessage({ type: 'start_timer', payload: {} });
+        socketService.send({ type: 'start_timer', payload: {} });
     }
 
     pauseTimer() {
-        this.sendMessage({ type: 'pause_timer', payload: {} });
+        socketService.send({ type: 'pause_timer', payload: {} });
     }
 
     resetTimer() {
-        this.sendMessage({ type: 'stop_timer', payload: {} });
+        socketService.send({ type: 'stop_timer', payload: {} });
     }
 }
 
-export const connection = new ConnectionStore();
+export const sessionStore = new SessionStore();

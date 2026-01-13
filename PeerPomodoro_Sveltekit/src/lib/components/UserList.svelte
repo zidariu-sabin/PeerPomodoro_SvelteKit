@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { User } from "$lib/stores/connectionStore.svelte";
+    import type { User } from "$lib/stores/sessionStore.svelte";
     
     interface Props {
         users: User[];

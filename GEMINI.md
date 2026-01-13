@@ -75,10 +75,10 @@ The server listens on `localhost:8080`.
 ## Architecture Notes
 -   **Real-time Communication:** 
     -   **Backend:** Uses `gorilla/websocket`. A session-aware `Hub` manages scoped broadcasting to specific sessions.
-    -   **Frontend:** Uses native `WebSocket` API integrated into a Svelte 5 reactive store (`connectionStore.svelte.ts`).
+    -   **Frontend:** Uses `socketService.ts` for raw connection management and `sessionStore.svelte.ts` for state and logic.
 -   **Timer Modes:**
     -   **Solo Mode:** The timer runs locally using `pomodoroStore.svelte.ts`. No server connection is required.
-    -   **Collaborative Mode:** When a session is active (`connection.session.id` exists), timer actions are delegated to the backend via `connectionStore.svelte.ts`.
+    -   **Collaborative Mode:** When a session is active (`sessionStore.session.id` exists), timer actions are delegated to the backend via `sessionStore.svelte.ts`.
     -   **Abstraction:** `src/lib/controllers/timerController.ts` handles the switching logic, keeping the UI components agnostic of the mode.
 -   **Session Management:**
     -   **Lifecycle:** Sessions are created via an HTTP POST request and joined via a WebSocket `join_session` message.

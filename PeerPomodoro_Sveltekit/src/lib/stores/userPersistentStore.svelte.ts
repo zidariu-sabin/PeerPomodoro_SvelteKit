@@ -37,8 +37,8 @@ class UserPersistentStore {
             if (stored) {
                 const data = JSON.parse(stored);
                 // Load each property if it exists in the storage
-                if (data.userName) this.userName = data.userName;
-                if (data.theme) this.theme = data.theme;
+                if (data.userName !== undefined) this.userName = data.userName;
+                if (data.theme !== undefined) this.theme = data.theme;
                 if (data.soundEnabled !== undefined) this.soundEnabled = data.soundEnabled;
             }
         } catch (e) {

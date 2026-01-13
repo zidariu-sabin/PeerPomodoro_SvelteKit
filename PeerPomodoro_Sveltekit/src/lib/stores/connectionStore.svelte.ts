@@ -1,5 +1,7 @@
 import { browser } from '$app/environment';
-import { syncTimer, type TimerConfigurableData } from './pomodoroStore.svelte';
+import { syncTimer, timer, type TimerConfigurableData } from './pomodoroStore.svelte';
+import { requestNotificationPermission, sendNotification } from '$lib/utils/notifications';
+import { PUBLIC_WS_BASE_URL } from '$env/static/public';
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -25,7 +27,8 @@ class ConnectionStore {
 
     connect() {
         if (!browser) return;
-        if (this.socket?.readyState === WebSocket.OPEN) return;
+        if (this.socket?.readyState === WebSocket.OPEN || 
+            this.socket?.readyState === WebSocket.CONNECTING) return;
 
         this.state = 'connecting';
         this.error = null;
@@ -33,7 +36,8 @@ class ConnectionStore {
         this.clientId = null;
 
         try {
-            this.socket = new WebSocket('ws://localhost:8080/connect');
+            const wsUrl = `ws://${import.meta.env.PUBLIC_API_BASE_URL}/connect` || 'ws://localhost:8080/connect';
+            this.socket = new WebSocket(wsUrl);
 
             this.socket.onopen = () => {
                 this.state = 'connected';
@@ -68,7 +72,6 @@ class ConnectionStore {
     }
 
     handleMessage(msg: any) {
-        console.log('Received:', msg);
         switch (msg.type) {
             case 'session_created':
                 this.session.id = msg.payload.session_id;
@@ -90,15 +93,12 @@ class ConnectionStore {
                 }
                 break;
             case 'user_updated':
-                console.log('Processing user_updated:', msg.payload);
                 const index = this.users.findIndex(u => u.id === msg.payload.client_id);
-                console.log('Found user index:', index);
                 if (index !== -1) {
                     // Force full array update for reactivity
                     const newUsers = [...this.users];
                     newUsers[index] = { ...newUsers[index], name: msg.payload.name };
                     this.users = newUsers;
-                    console.log('Updated users array:', this.users);
                 }
                 break;
             case 'user_left':
@@ -106,6 +106,18 @@ class ConnectionStore {
                 break;
             case 'timer_update':
                 if (msg.payload.timer) {
+                    const newTimer = msg.payload.timer;
+                    
+                    if (newTimer.is_completed && !timer.isCompleted) {
+                        sendNotification("Session Completed!", "All rounds finished. Well done!");
+                    } else if (!newTimer.is_completed) {
+                        if (timer.isWorkPeriod && !newTimer.is_work_period) {
+                             sendNotification("Break Time!", "Great job! Take a short break.");
+                        } else if (!timer.isWorkPeriod && newTimer.is_work_period) {
+                             sendNotification("Work Time!", "Break is over. Focus time!");
+                        }
+                    }
+
                     syncTimer(msg.payload.timer);
                 }
                 break;
@@ -124,6 +136,7 @@ class ConnectionStore {
     }
 
     createSession(timerData: TimerConfigurableData) {
+        requestNotificationPermission();
         // Map camelCase to snake_case for backend
         const payload = {
             work_time: timerData.workTime,
@@ -134,6 +147,7 @@ class ConnectionStore {
     }
 
     joinSession(sessionId: string, userName: string) {
+        requestNotificationPermission();
         this.sendMessage({
             type: 'join_session',
             payload: { session_id: sessionId, user_name: userName }

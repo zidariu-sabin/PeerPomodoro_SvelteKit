@@ -2,7 +2,7 @@
 
 A collaborative Pomodoro timer application where users can create and join timer sessions to work together.
 
-This project uses SvelteKit for the frontend and a Node.js server with Socket.IO for real-time communication.
+This project uses SvelteKit for the frontend and a Golang server with native WebSockets and gorilla/WebSockets for real-time communication.
 
 ## Implementation Guide
 

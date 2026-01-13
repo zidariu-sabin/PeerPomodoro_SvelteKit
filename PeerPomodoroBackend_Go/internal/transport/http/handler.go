@@ -5,7 +5,6 @@ import (
 	"PeerPomodoroBackend_Go/internal/service"
 	"encoding/json"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -20,35 +19,6 @@ func NewHandler(sessionService service.SessionManager) *Handler {
 }
 
 func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
-	// CORS handling
-	allowedOriginsEnv := os.Getenv("ALLOWED_ORIGINS")
-	if allowedOriginsEnv == "" {
-		allowedOriginsEnv = "http://localhost:5173"
-	}
-
-	allowedOrigins := strings.Split(allowedOriginsEnv, ",")
-	origin := r.Header.Get("Origin")
-	allow := false
-
-	for _, o := range allowedOrigins {
-		if strings.TrimSpace(o) == origin {
-			allow = true
-			break
-		}
-	}
-
-	if allow {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-	}
-
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -61,8 +31,11 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	timer := domain.NewTimer(req.WorkTime, req.BreakTime, req.TotalRounds)
-	session := h.SessionService.CreateSession(*timer)
-
+	session, err := h.SessionService.CreateSession(timer)
+	if err != nil {
+		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		return
+	}
 	resp := domain.SessionCreatedResponse{
 		SessionID: session.ID,
 	}
@@ -72,35 +45,6 @@ func (h *Handler) CreateSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetSession(w http.ResponseWriter, r *http.Request) {
-	// CORS handling
-	allowedOriginsEnv := os.Getenv("ALLOWED_ORIGINS")
-	if allowedOriginsEnv == "" {
-		allowedOriginsEnv = "http://localhost:5173"
-	}
-
-	allowedOrigins := strings.Split(allowedOriginsEnv, ",")
-	origin := r.Header.Get("Origin")
-	allow := false
-
-	for _, o := range allowedOrigins {
-		if strings.TrimSpace(o) == origin {
-			allow = true
-			break
-		}
-	}
-
-	if allow {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-	}
-
-	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -114,11 +58,15 @@ func (h *Handler) GetSession(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionID := parts[2]
 
-	_, err := h.SessionService.GetSession(sessionID)
+	session, err := h.SessionService.GetSession(sessionID)
 	if err != nil {
 		http.Error(w, "Session not found", http.StatusNotFound)
 		return
 	}
-
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(session); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }

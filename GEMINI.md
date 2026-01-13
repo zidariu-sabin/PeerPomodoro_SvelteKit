@@ -82,6 +82,7 @@ The server listens on `localhost:8080`.
     -   **Abstraction:** `src/lib/controllers/timerController.ts` handles the switching logic, keeping the UI components agnostic of the mode.
 -   **Session Management:**
     -   **Lifecycle:** Sessions are created via an HTTP POST request and joined via a WebSocket `join_session` message.
+    -   **Cleanup:** A background "Garbage Collector" job runs every 10 minutes to remove sessions that have been inactive for more than 24 hours (including "ghost" sessions created but never joined).
     -   **Storage:** Decoupled via the Repository pattern. Currently uses an in-memory adapter but is designed for easy transition to a database (SQL/NoSQL).
     -   **Identification:** Sessions are identified by UUIDv4 strings.
 -   **Communication Protocol:**

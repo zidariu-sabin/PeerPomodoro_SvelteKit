@@ -68,6 +68,12 @@ This document outlines the step-by-step implementation plan for the PeerPomodoro
 - [ ] **4.2 Visuals & Feedback**
     - Create a user Dashboard to display session information about joined users and their connection state.
     - Keep the already implemented design and make it consistent.
-    - Add browser notifications or sounds for timer completion.
+
+- [x] **4.3 Notifications**
+    - Add browser notifications for timer completion and phase changes.
+
+- [x] **4.4 Session Cleanup**
+    - Implement background job to remove inactive sessions (Garbage Collector pattern).
+    - Add LastActivity tracking to sessions.
 
 

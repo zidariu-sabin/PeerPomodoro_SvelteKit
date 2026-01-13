@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
     import PomodoroTimer from "$lib/components/PomodoroTimer.svelte";
     import ShareForm from '$lib/components/ShareForm.svelte';
     import { timer, startTimer, pause, resetLocalTimer } from "$lib/stores/pomodoroStore.svelte";
@@ -7,11 +6,6 @@
     let showShareModal = false;
     let shareButtonRef: HTMLButtonElement | null = null;
     let shareFormRef: any = null;
-    let shareUrl = '';
-
-    onMount(() => {
-        if (typeof window !== 'undefined') shareUrl = window.location.href;
-    });
 
     function openModal() {
         showShareModal = true;
@@ -19,7 +13,7 @@
         setTimeout(() => shareFormRef?.focus(), 0);
     }
 
-    function closeModal() {
+    const closeModal = function closeModal() {
         showShareModal = false;
         // restore focus to the share button
         setTimeout(() => shareButtonRef?.focus(), 0);
@@ -49,10 +43,10 @@
                     aria-modal="true"
                     aria-labelledby="shareform-title"
                     tabindex="-1"
-                    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') closeModal(); }}
+                    on:keydown={(e) => { if (e.key === 'Escape') closeModal(); }}
                 >
                         <!-- ensure the form content is fully opaque while the backdrop remains semi-transparent -->
-                        <ShareForm bind:this={shareFormRef} link={shareUrl} on:close={closeModal} />
+                        <ShareForm bind:this={shareFormRef} closeModal={closeModal} />
                 </div>
     {/if}
 

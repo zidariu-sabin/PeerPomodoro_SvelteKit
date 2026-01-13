@@ -7,7 +7,7 @@
       timerState: TimerState,
       onStart: () => void,
       onPause: () => void,
-      onReset: () => void
+      onReset: () => void,
     } = $props();
 
     const periodType = $derived(timerState.isWorkPeriod ? 'Work' : 'Break')
@@ -15,10 +15,11 @@
     const seconds = $derived(timerState.secondsRemaining % 60)
     const formattedTime = $derived(`${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`)
     
-    const progress = $derived(
-      ((timerState.isWorkPeriod ? timerState.workTime * 60 : timerState.breakTime * 60) - timerState.secondsRemaining) / 
-      (timerState.isWorkPeriod ? timerState.workTime * 60 : timerState.breakTime * 60) * 100
-    )
+    const progress = $derived((() => {
+      const totalSeconds = timerState.isWorkPeriod ? timerState.workTime * 60 : timerState.breakTime * 60;
+      if (totalSeconds === 0) return 0;
+      return ((totalSeconds - timerState.secondsRemaining) / totalSeconds) * 100;
+    })())
 </script>
 
 <div class="max-w-125 p-8 text-center mx-auto">
@@ -29,7 +30,7 @@
       <div class="text-xl mb-4">Round { timerState.currentRound } / { timerState.totalRounds }</div>
       <div class="w-full h-2 bg-black/10 rounded overflow-hidden">
         <div
-          class="h-full bg-current transition-[width] duration-1000 linear"
+          class="h-full bg-current transition-[width] duration-1000 "
           style="width:{progress}%"
         ></div>
       </div>
@@ -40,7 +41,7 @@
     {#if !timerState.isRunning}
       <button
         onclick={onStart}
-        disabled="{timerState.isCompleted}"
+        disabled={timerState.isCompleted}
         class="px-6 py-3 text-base border-none rounded-lg cursor-pointer bg-blue-500 text-white transition-colors duration-200 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
       >
       Continue

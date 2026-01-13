@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -34,6 +33,9 @@ var (
 type Client struct {
 	hub *Hub
 
+	// handler manages business logic for this client
+	handler *Handler
+
 	// The websocket connection.
 	conn *websocket.Conn
 
@@ -55,6 +57,7 @@ type Client struct {
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
+		c.handler.HandleDisconnect(c)
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -75,128 +78,7 @@ func (c *Client) readPump() {
 			continue
 		}
 
-		switch msg.Type {
-		case domain.MessageTypeJoinSession:
-			var req domain.JoinSessionRequest
-			if err := json.Unmarshal(msg.Payload, &req); err != nil {
-				log.Printf("Invalid JoinSessionRequest: %v", err)
-				continue
-			}
-
-			// Generate Client ID
-			clientID := uuid.NewString()
-			dClient := domain.NewClient(clientID, req.UserName)
-
-			// Add to session via service
-			if err := c.hub.sessionService.AddClientToSession(req.SessionID, *dClient); err != nil {
-				log.Printf("Failed to join session: %v", err)
-				
-				resp := domain.ErrorResponse{Message: "Session not found or unavailable"}
-				payload, _ := json.Marshal(resp)
-				msg := domain.Message{Type: domain.MessageTypeError, Payload: payload}
-				finalMsg, _ := json.Marshal(msg)
-				c.send <- finalMsg
-				continue
-			}
-
-			c.id = clientID
-			c.sessionID = req.SessionID
-			c.hub.join <- c
-
-			// Broadcast UserJoined to session
-			userJoinedResp := domain.UserJoinedResponse{Client: *dClient}
-			userJoinedPayload, _ := json.Marshal(userJoinedResp)
-			userJoinedMsg := domain.Message{
-				Type:    domain.MessageTypeUserJoined,
-				Payload: userJoinedPayload,
-			}
-			userJoinedFinal, _ := json.Marshal(userJoinedMsg)
-
-			c.hub.broadcast <- SessionMessage{
-				SessionID: req.SessionID,
-				Payload:   userJoinedFinal,
-			}
-
-			// Get updated session data
-			session, err := c.hub.sessionService.GetSession(req.SessionID)
-			if err != nil {
-				log.Printf("Failed to get session: %v", err)
-				continue
-			}
-
-			// Send confirmation to this client
-			response := domain.SessionJoinedResponse{
-				SessionID: session.ID,
-				ClientID:  clientID,
-				Timer:     *session.Timer,
-				Clients:   session.Clients,
-			}
-
-			respPayload, _ := json.Marshal(response)
-			respMsg := domain.Message{
-				Type:    domain.MessageTypeSessionJoined,
-				Payload: respPayload,
-			}
-
-			finalMsg, _ := json.Marshal(respMsg)
-			c.send <- finalMsg
-
-		case domain.MessageTypeUpdateUser:
-			var req domain.UpdateUserRequest
-			if err := json.Unmarshal(msg.Payload, &req); err != nil {
-				log.Printf("Invalid UpdateUserRequest: %v", err)
-				continue
-			}
-
-			if c.sessionID == "" {
-				continue
-			}
-
-			if err := c.hub.sessionService.UpdateClientName(c.sessionID, c.id, req.Name); err != nil {
-				log.Printf("Failed to update user name: %v", err)
-				continue
-			}
-
-			resp := domain.UserUpdatedResponse{
-				ClientID: c.id,
-				Name:     req.Name,
-			}
-			payload, _ := json.Marshal(resp)
-
-			broadcastMsg := domain.Message{
-				Type:    domain.MessageTypeUserUpdated,
-				Payload: payload,
-			}
-			finalMsg, _ := json.Marshal(broadcastMsg)
-
-			c.hub.broadcast <- SessionMessage{
-				SessionID: c.sessionID,
-				Payload:   finalMsg,
-			}
-
-		case domain.MessageTypeStartTimer:
-			if c.sessionID != "" {
-				c.hub.StartTimer(c.sessionID)
-			}
-
-		case domain.MessageTypePauseTimer:
-			if c.sessionID != "" {
-				c.hub.PauseTimer(c.sessionID)
-			}
-
-		case domain.MessageTypeStopTimer:
-			if c.sessionID != "" {
-				c.hub.ResetTimer(c.sessionID)
-			}
-
-		default:
-			if c.sessionID != "" {
-				c.hub.broadcast <- SessionMessage{
-					SessionID: c.sessionID,
-					Payload:   message,
-				}
-			}
-		}
+		c.handler.HandleMessage(c, msg)
 	}
 }
 
@@ -247,13 +129,13 @@ func (c *Client) writePump() {
 }
 
 // ServeWs handles websocket requests from the peer.
-func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request, upgrader websocket.Upgrader) {
+func ServeWs(hub *Hub, handler *Handler, w http.ResponseWriter, r *http.Request, upgrader websocket.Upgrader) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{hub: hub, handler: handler, conn: conn, send: make(chan []byte, 256)}
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in

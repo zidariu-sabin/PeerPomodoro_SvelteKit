@@ -106,7 +106,7 @@ func (t *Timer) Start() {
 				if t.OnTick != nil {
 					t.OnTick(t)
 				}
-				
+
 				t.mu.Lock()
 				if t.IsCompleted {
 					t.mu.Unlock()
@@ -130,7 +130,7 @@ func (t *Timer) handlePeriodComplete() {
 			if t.ticker != nil {
 				t.ticker.Stop()
 			}
-			// Don't close done here, handled by caller or deferred cleanup? 
+			// Don't close done here, handled by caller or deferred cleanup?
 			// Actually best to signal completion.
 			return
 		}

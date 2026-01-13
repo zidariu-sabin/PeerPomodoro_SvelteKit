@@ -1,4 +1,5 @@
 
+import { requestNotificationPermission, sendNotification } from '$lib/utils/notifications';
 
 export interface TimerConfigurableData{
   workTime: number
@@ -58,14 +59,22 @@ export function syncTimer(backendTimer: any) {
 }
 
 function tick() {
-  if(timer.secondsRemaining > 0)  timer.secondsRemaining --
-   else {
+  if(timer.secondsRemaining > 0)  {
+    timer.secondsRemaining --
+    //for debugging
+    if (timer.secondsRemaining < 0) {
+      timer.secondsRemaining = 0
+    }
+  }
+    else {
       handlePeriodComplete()
     }
   }
 
   function handlePeriodComplete() {
     if (timer.isWorkPeriod) {
+      // Transition to Break
+      sendNotification("Break Time!", "Great job! Take a short break.");
       timer.isWorkPeriod = false
       timer.secondsRemaining = timer.breakTime * 60
     } else {
@@ -74,8 +83,12 @@ function tick() {
       if (timer.currentRound >= timer.totalRounds) {
         pause()
         timer.isCompleted = true
+        sendNotification("Session Completed!", "All rounds finished. Well done!");
         return
       }
+      
+      // Transition to Work
+      sendNotification("Work Time!", "Break is over. Focus time!");
       timer.currentRound++
       
       timer.secondsRemaining = timer.workTime * 60
@@ -106,6 +119,7 @@ function initializeTimer() {
   }
 
 export function startTimer(){
+  requestNotificationPermission()
   if (timer.isRunning) return
   if (intervalId !== null) clearInterval(intervalId)
   

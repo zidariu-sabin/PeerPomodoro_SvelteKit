@@ -3,20 +3,11 @@ import type { Config } from 'tailwindcss'
 export default {
   // darkMode: ['class'],
   content: [
-    './components/**/*.{ts,svelte}',
-    './app/**/*.{ts,vue}',
-    './src/components//*.{js,ts,jsx,tsx,mdx,svelte}',
-    './src/routes//*.{js,ts,jsx,tsx,mdx,svelte}',
-    './src/views//*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{ts,svelte}',
+    './src/routes/**/*.{js,ts,svelte}',
     './index.html',
   ],
   prefix: '',
-  layers: {
-    theme: {},
-    base: {},
-    components: {},
-    utilities: {},
-  },
   theme: {
     container: {
       center: true,

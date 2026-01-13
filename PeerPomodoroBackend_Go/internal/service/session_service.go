@@ -3,14 +3,17 @@ package service
 import (
 	"PeerPomodoroBackend_Go/internal/domain"
 	"PeerPomodoroBackend_Go/internal/ports"
+	"context"
 	"errors"
+	"log"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 // SessionManager defines the contract for managing sessions
 type SessionManager interface {
-	CreateSession(timer domain.Timer) *domain.Session
+	CreateSession(timer *domain.Timer) (*domain.Session, error)
 	GetSession(id string) (*domain.Session, error)
 	AddClientToSession(sessionID string, client domain.Client) error
 	RemoveClientFromSession(sessionID string, clientID string) error
@@ -31,17 +34,20 @@ func NewSessionService(repo ports.SessionRepository) *SessionService {
 	}
 }
 
-func (s *SessionService) CreateSession(timer domain.Timer) *domain.Session {
+func (s *SessionService) CreateSession(timer *domain.Timer) (*domain.Session, error) {
 	// Generate a unique UUIDv4
 	id := uuid.NewString()
 
 	session := &domain.Session{
-		ID:      id,
-		Clients: []domain.Client{},
-		Timer:   &timer,
+		ID:           id,
+		Clients:      []domain.Client{},
+		Timer:        timer,
+		LastActivity: time.Now(),
 	}
-	s.repo.Save(session)
-	return session
+	if err := s.repo.Save(session); err != nil {
+		return nil, err
+	}
+	return session, nil
 }
 
 func (s *SessionService) GetSession(id string) (*domain.Session, error) {
@@ -55,6 +61,7 @@ func (s *SessionService) AddClientToSession(sessionID string, client domain.Clie
 	}
 
 	session.Clients = append(session.Clients, client)
+	session.LastActivity = time.Now()
 	return s.repo.Update(session)
 }
 
@@ -67,6 +74,7 @@ func (s *SessionService) UpdateClientName(sessionID string, clientID string, new
 	for i, client := range session.Clients {
 		if client.ID == clientID {
 			session.Clients[i].Name = newName
+			session.LastActivity = time.Now()
 			return s.repo.Update(session)
 		}
 	}
@@ -82,6 +90,7 @@ func (s *SessionService) RemoveClientFromSession(sessionID string, clientID stri
 	for i, client := range session.Clients {
 		if client.ID == clientID {
 			session.Clients = append(session.Clients[:i], session.Clients[i+1:]...)
+			session.LastActivity = time.Now()
 			return s.repo.Update(session)
 		}
 	}
@@ -96,6 +105,7 @@ func (s *SessionService) StartTimer(sessionID string, onTick func(*domain.Timer)
 
 	session.Timer.OnTick = onTick
 	session.Timer.Start()
+	session.LastActivity = time.Now()
 
 	return s.repo.Update(session)
 }
@@ -107,6 +117,7 @@ func (s *SessionService) PauseTimer(sessionID string) error {
 	}
 
 	session.Timer.Pause()
+	session.LastActivity = time.Now()
 	return s.repo.Update(session)
 }
 
@@ -117,5 +128,24 @@ func (s *SessionService) ResetTimer(sessionID string) error {
 	}
 
 	session.Timer.InitializeTimer()
+	session.LastActivity = time.Now()
 	return s.repo.Update(session)
+}
+
+func (s *SessionService) CleanupJob(ctx context.Context, interval time.Duration, maxIdleTime time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("CleanupJob stopped")
+			return
+		case <-ticker.C:
+			cutoff := time.Now().Add(-maxIdleTime)
+			if err := s.repo.DeleteInactiveSessions(cutoff); err != nil {
+				log.Printf("Error cleaning up sessions: %v", err)
+			}
+		}
+	}
 }

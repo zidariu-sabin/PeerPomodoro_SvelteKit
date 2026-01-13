@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"PeerPomodoroBackend_Go/internal/domain"
-	"PeerPomodoroBackend_Go/internal/service"
 	"encoding/json"
 	"log"
 )
@@ -30,18 +29,15 @@ type Hub struct {
 
 	// Session join requests.
 	join chan *Client
-
-	sessionService service.SessionManager
 }
 
-func NewHub(ss service.SessionManager) *Hub {
+func NewHub() *Hub {
 	return &Hub{
 		broadcast:      make(chan SessionMessage),
 		register:       make(chan *Client),
 		unregister:     make(chan *Client),
 		join:           make(chan *Client),
 		sessions:       make(map[string]map[*Client]bool),
-		sessionService: ss,
 	}
 }
 
@@ -74,8 +70,6 @@ func (h *Hub) Run() {
 					if len(clients) == 0 {
 						delete(h.sessions, client.sessionID)
 					}
-					// Remove from domain session
-					h.sessionService.RemoveClientFromSession(client.sessionID, client.id)
 				}
 			}
 			close(client.send)
@@ -103,60 +97,3 @@ func (h *Hub) Run() {
 	}
 }
 
-func (h *Hub) StartTimer(sessionID string) {
-	onTick := func(t *domain.Timer) {
-		h.broadcastTimerState(sessionID)
-	}
-
-	if err := h.sessionService.StartTimer(sessionID, onTick); err != nil {
-		log.Printf("Error starting timer for session %s: %v", sessionID, err)
-		return
-	}
-	h.broadcastTimerState(sessionID)
-}
-
-func (h *Hub) PauseTimer(sessionID string) {
-	if err := h.sessionService.PauseTimer(sessionID); err != nil {
-		log.Printf("Error pausing timer for session %s: %v", sessionID, err)
-		return
-	}
-	h.broadcastTimerState(sessionID)
-}
-
-func (h *Hub) ResetTimer(sessionID string) {
-	if err := h.sessionService.ResetTimer(sessionID); err != nil {
-		log.Printf("Error resetting timer for session %s: %v", sessionID, err)
-		return
-	}
-	h.broadcastTimerState(sessionID)
-}
-
-func (h *Hub) broadcastTimerState(sessionID string) {
-	session, err := h.sessionService.GetSession(sessionID)
-	if err != nil {
-		log.Printf("Error getting session %s for broadcast: %v", sessionID, err)
-		return
-	}
-
-	resp := domain.TimerUpdateResponse{Timer: *session.Timer}
-	payload, err := json.Marshal(resp)
-	if err != nil {
-		log.Printf("Error marshalling timer update: %v", err)
-		return
-	}
-
-	wrapper := domain.Message{
-		Type:    domain.MessageTypeTimerUpdate,
-		Payload: payload,
-	}
-	finalMsg, err := json.Marshal(wrapper)
-	if err != nil {
-		log.Printf("Error marshalling wrapper: %v", err)
-		return
-	}
-
-	h.broadcast <- SessionMessage{
-		SessionID: sessionID,
-		Payload:   finalMsg,
-	}
-}

@@ -50,7 +50,7 @@ type UpdateUserRequest struct {
 type SessionJoinedResponse struct {
 	SessionID string   `json:"session_id"`
 	ClientID  string   `json:"client_id"`
-	Timer     Timer    `json:"timer"`
+	Timer     *Timer   `json:"timer"`
 	Clients   []Client `json:"clients"`
 }
 
@@ -72,7 +72,7 @@ type UserLeftResponse struct {
 
 // TimerUpdateResponse is broadcast when the timer ticks or changes state
 type TimerUpdateResponse struct {
-	Timer Timer `json:"timer"`
+	Timer *Timer `json:"timer"`
 }
 
 // ErrorResponse is a generic error payload

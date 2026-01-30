@@ -1,12 +1,34 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import { timer } from '$lib/stores/pomodoroStore.svelte';
+	import { timer, refreshTimer } from '$lib/stores/pomodoroStore.svelte';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import type { WorkerMessage } from '$lib/types/workerMessages';
 
 	let { children } = $props();
 
 	const isTimerPage = $derived($page.url.pathname.startsWith('/timer'));
+
+	onMount(() => {
+		const sw = self as unknown as ServiceWorkerContainer;
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === 'visible') {
+				refreshTimer();
+			}
+		};
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		sw.addEventListener('message', (event) => {
+			const message = event.data as WorkerMessage;
+    		const { type, payload } = message;
+		});
+		
+
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
+	});
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

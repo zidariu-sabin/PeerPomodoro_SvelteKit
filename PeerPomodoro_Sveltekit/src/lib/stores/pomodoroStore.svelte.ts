@@ -1,5 +1,5 @@
 
-import { requestNotificationPermission, sendNotification } from '$lib/utils/notifications';
+import { requestNotificationPermission, sendNotification, scheduleNotification, cancelNotification } from '$lib/utils/notifications';
 
 export interface TimerConfigurableData{
   workTime: number
@@ -15,6 +15,7 @@ export interface TimerDisplayData{
   isRunning: boolean
   isCompleted: boolean
   isTimerCreated: boolean
+  endTime: number | null
 }
 
 type PomodoroState = TimerConfigurableData & TimerDisplayData
@@ -28,6 +29,7 @@ export const timer: PomodoroState = $state({
   isRunning: false,
   isCompleted: false,
   isTimerCreated: false,
+  endTime: null
 })
 let intervalId: number | null = null
 
@@ -41,6 +43,10 @@ export function setTimerData(timerData: TimerConfigurableData) {
 }
 
 export function syncTimer(backendTimer: any) {
+  // When backend syncs, we stop our local scheduling because the server drives the state.
+  // We cancel any local SW notifications to avoid double-firing or ghost notifications.
+  cancelNotification();
+
   timer.workTime = backendTimer.work_time
   timer.breakTime = backendTimer.break_time
   timer.totalRounds = backendTimer.total_rounds
@@ -50,6 +56,7 @@ export function syncTimer(backendTimer: any) {
   timer.isRunning = backendTimer.is_running
   timer.isCompleted = backendTimer.is_completed
   timer.isTimerCreated = backendTimer.is_timer_created
+  timer.endTime = null; // Backend drives the timer, no local target time.
 
   // Disable local interval in favor of backend updates
   if (intervalId !== null) {
@@ -58,45 +65,76 @@ export function syncTimer(backendTimer: any) {
   }
 }
 
-function tick() {
-  if(timer.secondsRemaining > 0)  {
-    timer.secondsRemaining --
-    //for debugging
-    if (timer.secondsRemaining < 0) {
-      timer.secondsRemaining = 0
-    }
-  }
-    else {
-      handlePeriodComplete()
-    }
-  }
+export function refreshTimer() {
+    tick();
+}
 
-  function handlePeriodComplete() {
+function tick() {
+  if (timer.endTime !== null) {
+      const now = Date.now();
+      const remaining = Math.ceil((timer.endTime - now) / 1000);
+      
+      timer.secondsRemaining = remaining;
+      
+      // Debug log (optional, reduced frequency or kept as requested)
+      console.log("Seconds Remaining:", timer.secondsRemaining, "Real time: ", new Date().toLocaleTimeString());
+
+      if (timer.secondsRemaining <= 0) {
+          timer.secondsRemaining = 0;
+          handlePeriodComplete();
+      }
+  } else {
+      if (timer.isRunning && !timer.endTime) {
+           timer.endTime = Date.now() + (timer.secondsRemaining * 1000);
+      }
+  }
+}
+
+  export function handlePeriodComplete() {
+    console.log("Period complete. Handling transition...");
+    // Determine next state properties
+    let nextSecondsRemaining = 0;
+    let title = "";
+    let body = "";
+
     if (timer.isWorkPeriod) {
       // Transition to Break
-      sendNotification("Break Time!", "Great job! Take a short break.");
-      timer.isWorkPeriod = false
-      timer.secondsRemaining = timer.breakTime * 60
+      title = "Break Time!";
+      body = "Great job! Take a short break.";
+      nextSecondsRemaining = timer.breakTime * 60;
+      timer.isWorkPeriod = false;
     } else {
-      timer.isWorkPeriod = true
-      
+      // Transition to Work or Complete
       if (timer.currentRound >= timer.totalRounds) {
-        pause()
-        timer.isCompleted = true
+        pause();
+        timer.isCompleted = true;
         sendNotification("Session Completed!", "All rounds finished. Well done!");
-        return
+        return;
       }
       
-      // Transition to Work
-      sendNotification("Work Time!", "Break is over. Focus time!");
-      timer.currentRound++
-      
-      timer.secondsRemaining = timer.workTime * 60
+      title = "Work Time!";
+      body = "Break is over. Focus time!";
+      nextSecondsRemaining = timer.workTime * 60;
+      timer.isWorkPeriod = true;
+      timer.currentRound++;
+    }
+    // Update state
+    timer.secondsRemaining = nextSecondsRemaining;
+    
+    // Send immediate notification for the transition
+    // sendNotification(title, body);
+
+    // Schedule NEXT notification
+    if (timer.isRunning) {
+        timer.endTime = Date.now() + (timer.secondsRemaining * 1000);
+        scheduleNextNotification()
     }
   }
 
 export function pause() {
   timer.isRunning = false
+  timer.endTime = null;
+  cancelNotification(); // Cancel any pending SW notification
   if (intervalId !== null) {
     clearInterval(intervalId)
     intervalId = null
@@ -116,6 +154,7 @@ function initializeTimer() {
     timer.secondsRemaining = timer.workTime * 60
     timer.isWorkPeriod = true
     timer.isRunning = false
+    timer.endTime = null;
   }
 
 export function startTimer(){
@@ -124,8 +163,28 @@ export function startTimer(){
   if (intervalId !== null) clearInterval(intervalId)
   
   timer.isRunning = true
+  
+  // Initialize end time based on current secondsRemaining
+  timer.endTime = Date.now() + (timer.secondsRemaining * 1000);
+
   intervalId = window.setInterval(() => {
       tick()
     }, 1000)
+}
+
+function scheduleNextNotification() {
+    // Schedule the notification for when this period ends
+  const nextTitle = timer.isWorkPeriod ? "Break Time!" : "Work Time!";
+  const nextBody = timer.isWorkPeriod ? "Great job! Take a short break." : "Break is over. Focus time!";
+
+  let targetTitle = nextTitle;
+  let targetBody = nextBody;
+  
+  if (!timer.isWorkPeriod && timer.currentRound >= timer.totalRounds) {
+      targetTitle = "Session Completed!";
+      targetBody = "All rounds finished. Well done!";
+  }
+
+  scheduleNotification(targetTitle, targetBody, timer.secondsRemaining * 1000);
 }
 
